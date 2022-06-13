@@ -1,0 +1,667 @@
+By Pavan Wankhade
+================
+This document is here to share command history and example scripts
+=======================================================
+
+
+LAB Details:
+
+RPS  Lab Access URL:   https://cloud.cdp.rpsconsulting.in/console/#/
+
+
+AWS Login URL : https://epsh2.signin.aws.amazon.com/console
+
+
+Day 1 
+=====
+
+
+### installation of Terraform on Centos LAB
+
+$ su - root                 ### PAssword is “rps@12345”
+
+# yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+# yum -y install terraform 
+# terraform --version
+# logout                                                #### will take you 
+$ terraform --version
+
+Ref : https://www.terraform.io/downloads
+Providers in terraform:  https://registry.terraform.io/browse/providers
+
+================================================
+
+
+### Demo 1 : For Local Provisioners and local execuators
+
+  12  mkdir example1-local
+   13  cd example1-local/
+   14  pwd
+   15  vi main.tf
+resource "null_resource" "operation1"{
+provisioner "local-exec" {
+command = "echo 'Hello all' > file1.txt"
+}
+}
+
+
+   16  terraform init
+   17  terraform plan
+   18  ls
+   19  terraform apply
+   20  ls
+   21  cat file1.txt
+   22  cat terraform.tfstate
+===========================================
+### Note down AWS Credentials on on notepad file 
+Region
+Access key
+Secret key
+=====================
+Demo 2: 
+
+### AWS s3 resource creation 
+;
+
+    5  mkdir awsS3practice
+    6  cd awsS3practice/
+    7  pwd
+
+    8  vi main.tf
+ provider "aws" {
+region = "ap-south-1"
+access_key = "*****"
+secret_key = "*****"
+}
+
+resource "aws_s3_bucket" "pavansbucket" {
+bucket = "pavan-terraform-training01"
+tags = {
+Name = "pavanTrainer"
+Environment = "development"
+}
+}
+
+resource "aws_s3_bucket_acl" "pavansbucketACL"{
+acl = "private"
+bucket = aws_s3_bucket.pavansbucket.id
+}
+
+---------------------------------------------------------------------------------
+
+   9  ls -la
+   10  terraform init
+   20  terraform plan
+   21  ls -la
+   22  terraform apply
+   23  ls -la
+   24  vi terraform.tfstate
+   29  terraform destroy
+   =======================================
+
+### Day 2:
+================
+
+## Local executors with Null_Resource
+======================================
+  37  mkdir TERRAFORM_Practice
+   38  cd TERRAFORM_Practice/
+
+
+   39  mkdir new_project
+   40  cd new_project/
+  
+ 41  vi myterraform.tf
+resource "null_resource" "opt1"{
+
+provisioner "local-exec" {
+command = "echo 'This is Terraform Training' > training.txt"
+}
+}
+
+resource "null_resource" "opt2"{
+
+provisioner "local-exec" {
+command = "echo 'Pavan Wankhade is the trainer for this training' > trainer.txt"
+}
+}
+
+-------------------------------------------------
+
+   42  ls
+   43  terraform init
+   44  terraform apply
+   45  ls
+   46  cat training.txt
+   47  cat terraform.tfstate
+
+### lets create a new tf file
+
+
+   58  vi myterraform1.tf
+resource "null_resource" "opt3"{
+
+provisioner "local-exec" {
+command = "echo 'This is Terraform Training' > training1.txt"
+}
+}
+
+------------------------------------------------------
+   61  ls
+   62  terraform apply
+   63  ls
+   64  cat terraform.tfstate
+   65  cat terraform.tfstate.backup
+   66  terraform show
+   67  ls
+
+ =================================================================
+Demo:
+
+### Using environment argument in Local-Exec
+
+$ vi myexample.tf
+
+resource "null_resource" "newOperation" {
+provisioner "local-exec"{
+command = "echo $ENV1 $ENV2 $ENV3 >> myenv.txt"
+environment = {
+ENV1 = "Training"
+ENV2 = "true"
+ENV3 = 1
+}
+}
+}
+--------------------------
+Terraform apply need to do to apply this code
+-------------------------
+$ cat myenv.txt
+Note : environment - (Optional) block of key value pairs representing the environment of the executed command. inherits the current process environment.
+==============================================================
+Demo :
+### Working_dir argument with Local_execuator
+Example:
+===========
+  79  vi /home/rps/myscript.sh
+hostname >> ~/output.txt
+date >> ~/output.txt
+free -h >> ~/output.txt
+
+--------------------------------------------
+
+   80  vi myexample1.tf
+
+resource "null_resource" "runningScript" {
+provisioner "local-exec" {
+command = "sh myscript.sh"
+working_dir = "/home/rps/"
+}
+}
+
+-----------------------------------------------------
+
+   81  terraform apply
+   87  cat /home/rps/output.txt
+   88  cat /home/rps/myscript.sh
+
+=======================================
+
+#### Input variables 
+====================
+String
+Number
+Boolean
+## special types
+List
+Map
+
+
+=================
+Demo:   String and Number type variables
+-----------------------------
+
+  95  mkdir example-vars
+   96  cd example-vars/
+   97  ls
+   98  vi main.tf
+variable "myvar" {
+type = string
+default = "This is Team GTS for Terraform"
+}
+
+variable "yourvar" {
+type = number
+default = 30
+}
+
+resource "null_resource" "operation1" {
+provisioner "local-exec" {
+command = "echo ${var.myvar} having ${var.yourvar} members > file1.txt"
+}
+}
+
+-------------------------------------------------
+    101  terraform init
+  102  terraform apply
+  103  ls
+  104  cat file1.txt
+
+
+==========================================
+Extra : Example of vars of type bool and hiding output of vars from Plan and Apply Output with sensitive vars
+
+
+$ cat main.tf
+variable "myvar" {
+type = string
+default = "This is Team GTS for Terraform"
+sensitive = true
+}
+
+variable "yourvar" {
+type = number
+default = 30
+}
+
+variable "newvar" {
+type = bool
+default = true
+}
+
+
+resource "null_resource" "operation1" {
+provisioner "local-exec" {
+command = "echo ${var.myvar} having ${var.yourvar} members and newvar is ${var.newvar} > file1.txt"
+}
+}
+
+==============================================================
+
+Demo : 
+### variables with type List and Map 
+
+$ vi sample.tf
+variable "users" {
+type = list
+default = ["root","rps","pavan"]
+}
+
+variable "flavors" {
+type = map
+default = {
+"flavor1" = "1xCPU-1GB"
+"flavor2" = "2xCPU-2GB"
+"flavor9" = "8xCPU-64GB"
+}
+}
+
+
+resource "null_resource" "operationy" {
+provisioner "local-exec" {
+command = "echo configurations available are : ${var.flavors["flavor1"]} , ${var.flavors["flavor2"]} , ${var.flavors["flavor9"]} >> file2.txt"
+}
+}
+resource "null_resource" "operationx" {
+provisioner "local-exec" {
+command = "echo Users are : ${var.users[0]} , ${var.users[1]} , ${var.users[2]} >> file1.txt"
+}
+}
+
+==========================================
+### Variables defined without Type :  can read input and decide type intelligently 
+### Variables values can be pass with Command line with terra form apply or plan
+
+=====================================================
+
+$ cat newfile.tf
+variable "set_password" {
+default = true
+}
+
+resource "null_resource" "operation3"{
+provisioner "local-exec" {
+command = "echo values of set_password var is ${var.set_password} >> file1.txt"
+}
+}
+
+--------------------------------------------
+$ terraform  apply
+$ terraform destroy
+$ terraform apply -var set_password=false                 ## Command line vars
+======================================
+
+#####
+Demo : TFVARS
+===============
+
+ 150  cd ..
+  151  ls
+  152  mkdir decent_project
+  153  cd decent_project/
+  154  vi vars.tf
+variable "myvar" {
+type = string
+}
+
+variable "yourvar" {
+type = number
+}
+
+------------------------------------------------------
+
+  155  vi terraform.tfvars
+myvar = "Hello all , Welcome to Terraform"
+yourvar = 100
+
+---------------------------------------------
+
+  156  ls
+  157  vi main.tf
+resource "null_resource" "operation1" {
+provisioner "local-exec" {
+command = "echo ${var.myvar} having ${var.yourvar} members > file1.txt"
+}
+}
+
+----------------------------------------------
+
+  158  terraform init
+  164  terraform plan
+  177  terraform apply --auto-approve
+
+====================================================================
+
+#### AWS VPC Demo Project
+
+ 187  cd ..
+  188  ls
+  189  mkdir example-aws-vpc
+  190  cd example-aws-vpc/
+  191  ls
+  192  vi credentials.tf
+provider "aws" {
+region = "ap-south-1"
+access_key = "**********"
+secret_key = "***************"
+}
+--------------------------------------------------------
+
+
+  193  vi vars.tf
+variable "mycidr" {
+type = string
+description = "CIDR block for proposed new vpc By pavan"
+}
+
+---------------------------------------
+
+  194  vi terraform.tfvars
+mycidr = "21.21.0.0/16"
+--------------------------------------------
+  195  vi main.tf
+resource "aws_vpc" "pavan-vpc"{
+cidr_block = var.mycidr
+instance_tenancy = "default"
+tags = {
+Name = "Pavan-vpc"
+}
+}
+
+---------------------------------------------------------------
+
+  196  ls
+  197  terraform init
+  198  vi main.tf
+  199  terraform init
+  200  terraform plan
+  201  terraform apply --auto-approve
+  202  ls
+  203  cat terraform.tfstate
+  204  ls
+  205  terraform destroy
+  203  cat terraform.tfstate
+===================================================
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Day 3
+========
+
+========
+#### Create your Github personal account and Add ssh key of your node to its settings
+
+
+$  su - root              ===> password is   rps@12345
+#    yum install git -y             
+#     logout   
+
+=============
+  258  git --version
+
+  260  whoami
+  261  ssh-keygen                 ###  Press “Enter”  when it ask any question fro default values
+
+  262  cat /home/rps/.ssh/id_rsa.pub
+
+## Copy the Key and On github portal 
+(Right Upper corner Down arrow beside your profile picture/avatar )
+
+ Go to Settings ⇒ In “Access” Section on left panel ⇒ “SSH and GPG Keys” ⇒ Add “New Ssh Key”  ⇒ Copy and paste you ssh public key into and save
+ 
+Note : Public key need to copy from “ cat /home/rps/.ssh/id_rsa.pub” command   
+
+
+========================================
+####  Git Config for developers name and EmailID
+
+
+257  git config --global user.name pavansw
+  258  git config --global user.email pavanwankhade4u@gmail.com
+============================================  
+
+  228  git clone git@github.com:pavansw/TerraformSampleProjectGTS.git
+ 229  ls
+  230  cd TerraformSampleProjectGTS/
+  231  ls
+  232  pwd
+  233  ls -la
+  234  touch .gitignore
+
+  247  vi credentials.tf
+provider "aws" {
+region = "ap-south-1"
+access_key = "**********"
+secret_key = "***************"
+}
+--------------------------------------------------------
+
+
+  248  vi variables.tf
+variable "mycidr" {
+type = string
+description = "CIDR block for proposed new vpc By pavan"
+}
+
+---------------------------------------
+  249  vi terraform.tfvars
+mycidr = "21.21.0.0/16"
+--------------------------------------------
+  195  vi main.tf
+resource "aws_vpc" "pavan-vpc"{
+cidr_block = var.mycidr
+instance_tenancy = "default"
+tags = {
+Name = "Pavan-vpc"
+}
+}
+-------------------------------------------------------------------  
+251  ls -la
+ 275  echo ".terraform" >> .gitignore
+  286  echo ".terraform/*" >> .gitignore
+
+  252  echo "credentials.tf" >> .gitignore
+  253  echo "terraform.tfvars" >> .gitignore
+
+
+  254  vi README.md
+# Type some Instructions about variables  and values
+
+  255  git add .
+  261  git commit -m "Initial Project for VPC AWS"
+
+262  git push origin master
+++++++++++++++++++++++++++
+## Check on GitHub
+============================================
+ 263  terraform init
+  264  terraform plan
+  265  terraform apply --auto-approve
+  299  git add .
+
+  301  git commit -m "Fresh VPC Created"
+  302  git push origin master
+====================================
+
+#### Whenever you change Anything in the Terraform Project Directory you need to do “git add .”  , “git commit -m <Some Msg>” , git push origin master
+======================================================
+
+
+_________________________________________________________________
+Day 4:
+
+Loop with Count 
+==============================
+
+
+  383  mkdir example_loop
+  384  cd example_loop/
+  385  ls
+##  386  cp ../TerraformSampleProjectGTS/credentials.tf .
+  387  ls
+  388  cat credentials.tf            ### write credentials
+  389  vi example.tf
+
+## example1 with List
+
+
+variable "names" {
+type = list
+default = ["pavan-user1","pavan-user2","pavan-user3"]
+description = "New User Accounts for IAM"
+}
+
+resource "aws_iam_user" "myusers" {
+count = length(var.names)
+name = var.names[count.index]
+}
+## example with count appended in username
+
+resource "aws_iam_user" "usersCreation"{
+count = 6
+name = "GTS${count.index}"
+}
+
+------------------------------------------------
+  391  terraform init
+  392  terraform validate
+  393  terraform plan
+  394  terraform apply --auto-approve
+  395  cat terraform.tfstate
+ 407  terraform destroy --auto-approve
+
+===========================================================
+#### AWS S3 Bucket and Bucket Object upload - 
+
+  447  cd ..
+  448  mkdir exampleS3
+  449  cd exampleS3/
+  450  ls
+  451  cp ../example_loop/credentials.tf .
+
+  458  vi main.tf
+resource "aws_s3_bucket" "mybucket" {
+bucket = "pavan-terraform-training01"
+tags = {
+Name = "pavanTrainer"
+Environment = "Test"
+}
+}
+
+resource "aws_s3_bucket_acl" "mybucketacl"{
+acl = "private"
+bucket = aws_s3_bucket.mybucket.id
+}
+
+---------------------------------------------------------------------
+
+  459  terraform init
+  460  terraform plan
+  461  terraform apply --auto-approve
+
+
+
+####  Lets upload one object on the bucket
+
+  462  ls
+  463  echo "This is My webpage: PAVAN" > index.html
+  464  ls
+  465  vi upload_object.tf
+resource "aws_s3_object" "myobject" {
+  bucket = aws_s3_bucket.mybucket.id
+  key = "mywebpage"
+  acl = "private"  # or it can be "public-read"
+  source = "index.html"
+  etag = filemd5("index.html")    ### optional field used for encryption of object
+}
+
+--------------------------------------------------------------
+
+  466  terraform plan
+  467  vi upload_object.tf
+  468  terraform plan
+  469  terraform apply --auto-approve
+
+###   Bulk upload data to S3 bucket and use of    for each   loop
+  470  ls
+  471  mkdir mydata
+  472  touch mydata/sample{1..3}.doc
+  473  ls
+  474  ls mydata/
+  475  ls
+  476  vi upload_object.tf
+
+resource "aws_s3_object" "myobject1" {
+
+for_each = fileset("mydata/","*")
+
+  bucket = aws_s3_bucket.mybucket.id
+  key = each.value
+  acl = "private"
+  source = "mydata/${each.value}"
+  etag = filemd5("mydata/${each.value}")
+}
+
+------------------------------------------------------------------------------
+
+  477  terraform plan
+  478  terraform apply --auto-approve
+  479  terraform destroy --auto-approve
+============================================================
+
+### EXTRAS :      depends_on = [****** some resource Name *****]
+
+## depends_on helps to create dependency between resources 
+Example :  relevance with previous demo
+
+  resource "aws_s3_object" "myobject" {
+
+  depends_on = [aws_s3_bucket.mybucket]
+  bucket = aws_s3_bucket.mybucket.id
+  key = "mywebpage"
+  acl = "private"  # or it can be "public-read"
+  source = "index.html"
+  etag = filemd5("index.html")    # optional field used for encryption of object
+}
+
+=========================================
+================
+
